@@ -599,6 +599,32 @@ contract CrowdFundsTest is Test {
     // EDGE CASES & SECURITY
     // ============================================
     
+    function test_Reentrancy_RefundProtection() public {
+        // Deploy attacker contract
+        ReentrancyAttacker attacker = new ReentrancyAttacker(address(crowdfund));
+        vm.deal(address(attacker), 10 ether);
+        
+        // Fund via attacker (need to fund enough to trigger refund)
+        vm.prank(address(attacker));
+        crowdfund.fundEth{value: 2 ether}();
+        
+        // Add another contributor to vote no (so proposal gets declined)
+        vm.prank(alice);
+        crowdfund.fundEth{value: 1 ether}();
+        
+        vm.prank(alice);
+        crowdfund.voting(false);
+        
+        // Finalize vote
+        vm.warp(block.timestamp + DURATION + 1);
+        crowdfund.finalizeVote();
+        
+        // Try reentrancy attack via attacker contract
+        // The attack will fail with WITHDRAW_FAILED
+        vm.expectRevert(CrowdFunds.WITHDRAW_FAILED.selector);
+        vm.prank(address(attacker));
+        attacker.claimRefund();
+    }
     
     function test_Fallback_Revert() public {
         vm.prank(alice);
