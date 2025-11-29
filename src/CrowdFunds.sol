@@ -75,11 +75,10 @@ contract CrowdFunds {
     /// @notice Emitted when the voting result is finalized
     event Finalized(bool approved, uint256 yes, uint256 no);
 
-
     // -------------------------
     // ERRORS
     // -------------------------
-    
+
     error FUNDING_CLOSED();
     error ACCESS_DENIED();
     error FORBIDDEN();
@@ -97,7 +96,6 @@ contract CrowdFunds {
     error PROPOSAL_IS_STILL_PENDING();
     error PROPOSAL_NOT_FINALIZED();
     error CONTRACT_INSUFFICIENT_BALANCE(uint256 requested, uint256 available);
-
 
     // -------------------------
     // MODIFIERS
@@ -214,7 +212,6 @@ contract CrowdFunds {
         declined = proposal.declined; //  @return declined Whether the proposal was rejected
         deadline = proposal.deadline; // @return deadline UNIX timestamp when funding ends
     }
-    
 
     // -------------------------
     // FUNDING
@@ -280,8 +277,9 @@ contract CrowdFunds {
      */
     function finalizeVote() external {
         Proposal storage prop = proposal;
-        if (block.timestamp < prop.deadline)
+        if (block.timestamp < prop.deadline) {
             revert STILL_IN_FUNDING_PERIOD();
+        }
         if (prop.executed) revert ALREADY_FINALIZED();
 
         prop.executed = true;
@@ -314,11 +312,13 @@ contract CrowdFunds {
      */
     function refund(uint256 _amountEthInWei) external antiReentrant {
         Proposal storage prop = proposal;
-        if (_amountEthInWei == 0)
+        if (_amountEthInWei == 0) {
             revert INVALID_INPUT(_amountEthInWei);
+        }
 
-        if (contributors[msg.sender] < _amountEthInWei)
+        if (contributors[msg.sender] < _amountEthInWei) {
             revert INSUFFICIENT_BALANCE(_amountEthInWei, contributors[msg.sender]);
+        }
         if (!prop.executed) revert PROPOSAL_NOT_FINALIZED();
 
         // If approved AND goal reach -> cannot refund
@@ -333,7 +333,7 @@ contract CrowdFunds {
         // CEI
         contributors[msg.sender] -= _amountEthInWei;
 
-        (bool success, ) = payable(msg.sender).call{value: _amountEthInWei}("");
+        (bool success,) = payable(msg.sender).call{value: _amountEthInWei}("");
         if (!success) revert WITHDRAW_FAILED();
 
         emit Refunded(msg.sender, _amountEthInWei);
@@ -360,7 +360,7 @@ contract CrowdFunds {
         if (!prop.approved) revert PROPOSAL_NOT_APPROVED();
 
         // CEI not necessary for contract-level balance transfer, but keep pattern
-        (bool success, ) = payable(owner).call{value: amount}("");
+        (bool success,) = payable(owner).call{value: amount}("");
         if (!success) revert WITHDRAW_FAILED();
 
         emit WithdrawAll(owner, amount);
